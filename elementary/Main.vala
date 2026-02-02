@@ -5,6 +5,7 @@ public class MyTrueNorthApp : Gtk.Application {
     // when switching between tabs
     private MyTrueNorth.StepOneVBox step1;
     private MyTrueNorth.StepTwoVBox step2;
+    private MyTrueNorth.StepThreeVBox step3;
     private Gtk.Stack stack;
 
     public MyTrueNorthApp () {
@@ -28,10 +29,12 @@ public class MyTrueNorthApp : Gtk.Application {
         // 1. Create instances of your separate Step classes
         step1 = new MyTrueNorth.StepOneVBox ();
         step2 = new MyTrueNorth.StepTwoVBox ();
+        step3 = new MyTrueNorth.StepThreeVBox ();
 
         // 2. Add them to the stack
         stack.add_titled (step1, "step1", "Step 1 - What's Important");
         stack.add_titled (step2, "step2", "Step 2 - Weights (%)");
+        stack.add_titled (step3, "step3", "Step 3 - Scoring (1-10)");
 
         // Placeholder for future steps
         stack.add_titled (new Gtk.Label ("Step 3 logic coming soon"), "step3", "Step 3 - Scoring");
@@ -52,9 +55,9 @@ public class MyTrueNorthApp : Gtk.Application {
         sidebar_list.row_selected.connect ((row) => {
             var index = row.get_index ();
             
-            // If user clicks Step 2, grab the data from Step 1 and refresh the sliders
-            if (index == 1) { 
-                step2.refresh_list (step1.important_items);
+            // If user clicks Step 3, grab the data from Step 1 and refresh the sliders
+            if (index == 2) { 
+                step3.refresh_list (step1.important_items);
             }
             
             stack.set_visible_child_full (index == 0 ? "step1" : (index == 1 ? "step2" : "step3"), Gtk.StackTransitionType.SLIDE_LEFT_RIGHT);
