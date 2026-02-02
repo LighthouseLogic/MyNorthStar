@@ -1,0 +1,20 @@
+window {
+    background-color: #000000;
+    color: #00FF00;
+}
+
+/* Make the sidebar and labels follow the theme */
+label, list, row {
+    color: #00FF00;
+}
+
+.sidebar {
+    background-color: #1a1a1a;
+    border-right: 1px solid #00FF00;
+}
+
+button {
+    background-color: #000000;
+    color: #00FF00;
+    border: 1px solid #00FF00;
+}
