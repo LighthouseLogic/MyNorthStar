@@ -1,64 +1,68 @@
 using Gtk;
-using Gee;
 
-namespace MyTrueNorth {
+public class MyTrueNorthApp : Gtk.Application {
+    public MyTrueNorthApp () {
+        Object (application_id: "com.github.lighthouselogic.mytruenorth");
+    }
 
-    public class StepOneVBox : Gtk.Box {
-        private Gtk.Entry element_entry;
-        private Gtk.ListBox elements_list;
-        public ArrayList<string> important_items;
+    protected override void activate () {
+        var window = new Gtk.ApplicationWindow (this);
+        window.set_default_size (800, 500);
+        window.set_title ("MyTrueNorth");
 
-        public StepOneVBox () {
-            Object (orientation: Gtk.Orientation.VERTICAL, spacing: 20);
-            this.set_margin_all (40);
-            
-            important_items = new ArrayList<string> ();
+        // Load Custom CSS for Black/Green Theme
+        var provider = new Gtk.CssProvider ();
+        provider.load_from_path ("style.css");
+        Gtk.StyleContext.add_provider_for_display (
+            Gdk.Display.get_default (), 
+            provider, 
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        );
 
-            // Header
-            var title = new Gtk.Label ("What's important for a fulfilling life?");
-            title.add_css_class ("title-label"); // We can style this in CSS
-            this.append (title);
+        var main_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
+        var stack = new Gtk.Stack ();
+        stack.set_transition_type (Gtk.StackTransitionType.SLIDE_LEFT_RIGHT);
 
-            // Input Area
-            var input_hbox = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 10);
-            element_entry = new Gtk.Entry ();
-            element_entry.set_placeholder_text ("e.g. Physical Health, Financial Freedom...");
-            element_entry.set_hexpand (true);
+        // Sidebar Navigation
+        var sidebar_list = new Gtk.ListBox ();
+        sidebar_list.add_css_class ("sidebar");
+        sidebar_list.set_size_request (250, -1);
 
-            var add_button = new Gtk.Button.with_label ("Add Element");
-            add_button.clicked.connect (on_add_clicked);
-            element_entry.activate.connect (on_add_clicked); // Add on 'Enter' key
+        // Define our 5 Steps
+        string[] steps = {
+            "Step 1 - What's Important",
+            "Step 2 - Weights (%)",
+            "Step 3 - Scoring (1-10)",
+            "Step 4 - Results",
+            "Step 5 - Graph Results"
+        };
 
-            input_hbox.append (element_entry);
-            input_hbox.append (add_button);
-            this.append (input_hbox);
+        foreach (var step_name in steps) {
+            var label = new Gtk.Label (step_name);
+            label.set_margin_all (12);
+            sidebar_list.append (label);
 
-            // List Display
-            elements_list = new Gtk.ListBox ();
-            elements_list.set_selection_mode (Gtk.SelectionMode.NONE);
-            elements_list.add_css_class ("elements-list");
-            
-            var scroll = new Gtk.ScrolledWindow ();
-            scroll.set_policy (Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC);
-            scroll.set_vexpand (true);
-            scroll.set_child (elements_list);
-            
-            this.append (scroll);
+            // Create a placeholder page for each step
+            var page = new Gtk.CenterBox ();
+            page.set_center_widget (new Gtk.Label (step_name + " Interface Goes Here"));
+            stack.add_titled (page, step_name, step_name);
         }
 
-        private void on_add_clicked () {
-            var text = element_entry.get_text ().strip ();
-            if (text != "") {
-                important_items.add (text);
-                
-                // Add visual row to the list
-                var row_label = new Gtk.Label (text);
-                row_label.set_halign (Gtk.Align.START);
-                row_label.set_margin_all (10);
-                
-                elements_list.append (row_label);
-                element_entry.set_text (""); // Clear input
-            }
-        }
+        // Logic to switch pages when sidebar is clicked
+        sidebar_list.row_selected.connect ((row) => {
+            var index = row.get_index ();
+            stack.set_visible_child_name (steps[index]);
+        });
+
+        main_box.append (sidebar_list);
+        main_box.append (stack);
+        stack.set_hexpand (true);
+
+        window.set_child (main_box);
+        window.present ();
+    }
+
+    public static int main (string[] args) {
+        return new MyTrueNorthApp ().run (args);
     }
 }
