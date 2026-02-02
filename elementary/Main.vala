@@ -7,6 +7,7 @@ public class MyTrueNorthApp : Gtk.Application {
     private MyTrueNorth.StepTwoVBox step2;
     private MyTrueNorth.StepThreeVBox step3;
     private MyTrueNorth.StepFourVBox step4;
+    private MyTrueNorth.StepFiveVBox step5;
     private Gtk.Stack stack;
 
     public MyTrueNorthApp () {
@@ -32,12 +33,14 @@ public class MyTrueNorthApp : Gtk.Application {
         step2 = new MyTrueNorth.StepTwoVBox ();
         step3 = new MyTrueNorth.StepThreeVBox ();
         step4 = new MyTrueNorth.StepFourVBox ();
+        step5 = new MyTrueNorth.StepFiveVBox ();
 
         // 2. Add them to the stack
         stack.add_titled (step1, "step1", "Step 1 - What's Important");
         stack.add_titled (step2, "step2", "Step 2 - Weights (%)");
         stack.add_titled (step3, "step3", "Step 3 - Scoring (1-10)");
         stack.add_titled (step4, "step4", "Step 4 - Results");
+        stack.add_titled (step5, "step5", "Step 5 - Graph Results");
 
         // Placeholder for future steps
         stack.add_titled (new Gtk.Label ("Step 3 logic coming soon"), "step3", "Step 3 - Scoring");
@@ -57,15 +60,27 @@ public class MyTrueNorthApp : Gtk.Application {
         // 4. THE CONNECTION LOGIC
         sidebar_list.row_selected.connect ((row) => {
             var index = row.get_index ();
-                if (index == 1) { 
-                    step2.refresh_list (step1.important_items);
-                } else if (index == 2) { 
-                    step3.refresh_list (step1.important_items);
-                } else if (index == 3) {
-                    // Pass Step 1 items, Step 2 weights, and Step 3 scores to Step 4
-                    step4.calculate_and_display (step1.important_items, step2.weights_map, step3.scores_map);
-                }
-                stack.set_visible_child_full (index == 0 ? "step1" : (index == 1 ? "step2" : (index == 2 ? "step3" : "step4")), Gtk.StackTransitionType.SLIDE_LEFT_RIGHT);
+
+            // Logic to prepare data for each specific step
+            if (index == 1) { 
+                step2.refresh_list (step1.important_items);
+            } else if (index == 2) { 
+                step3.refresh_list (step1.important_items);
+            } else if (index == 3) {
+                step4.calculate_and_display (step1.important_items, step2.weights_map, step3.scores_map);
+            } else if (index == 4) {
+                step5.update_chart (step1.important_items, step2.weights_map, step3.scores_map);
+            }
+
+            // Determine which "room" (string ID) to show based on the index
+            string target_step = "step1";
+            if (index == 1) target_step = "step2";
+            else if (index == 2) target_step = "step3";
+            else if (index == 3) target_step = "step4";
+            else if (index == 4) target_step = "step5";
+
+            // Switch the visible screen
+            stack.set_visible_child_full (target_step, Gtk.StackTransitionType.SLIDE_LEFT_RIGHT);
         });
 
         main_box.append (sidebar_list);
