@@ -37,3 +37,22 @@ entry {
     border: 1px solid #00FF00;
     caret-color: #00FF00;
 }
+.total-label {
+    font-size: 14pt;
+    font-weight: bold;
+    padding: 10px;
+    border-top: 1px solid #00FF00;
+}
+
+.warning-text {
+    color: #FF0000 !important; /* Red if over 100% */
+}
+
+/* Style the sliders to be green */
+scale contents trough highlight {
+    background-color: #00FF00;
+}
+
+scale contents trough {
+    background-color: #333;
+}
