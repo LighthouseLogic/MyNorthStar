@@ -18,3 +18,22 @@ button {
     color: #00FF00;
     border: 1px solid #00FF00;
 }
+
+/* style.css */
+.title-label {
+    font-size: 18pt;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.elements-list {
+    border: 1px solid #00FF00;
+    background-color: #080808;
+}
+
+entry {
+    background-color: #111;
+    color: #00FF00;
+    border: 1px solid #00FF00;
+    caret-color: #00FF00;
+}
