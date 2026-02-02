@@ -6,6 +6,7 @@ public class MyTrueNorthApp : Gtk.Application {
     private MyTrueNorth.StepOneVBox step1;
     private MyTrueNorth.StepTwoVBox step2;
     private MyTrueNorth.StepThreeVBox step3;
+    private MyTrueNorth.StepFourVBox step4;
     private Gtk.Stack stack;
 
     public MyTrueNorthApp () {
@@ -30,11 +31,13 @@ public class MyTrueNorthApp : Gtk.Application {
         step1 = new MyTrueNorth.StepOneVBox ();
         step2 = new MyTrueNorth.StepTwoVBox ();
         step3 = new MyTrueNorth.StepThreeVBox ();
+        step4 = new MyTrueNorth.StepFourVBox ();
 
         // 2. Add them to the stack
         stack.add_titled (step1, "step1", "Step 1 - What's Important");
         stack.add_titled (step2, "step2", "Step 2 - Weights (%)");
         stack.add_titled (step3, "step3", "Step 3 - Scoring (1-10)");
+        stack.add_titled (step4, "step4", "Step 4 - Results");
 
         // Placeholder for future steps
         stack.add_titled (new Gtk.Label ("Step 3 logic coming soon"), "step3", "Step 3 - Scoring");
@@ -54,13 +57,15 @@ public class MyTrueNorthApp : Gtk.Application {
         // 4. THE CONNECTION LOGIC
         sidebar_list.row_selected.connect ((row) => {
             var index = row.get_index ();
-            
-            // If user clicks Step 3, grab the data from Step 1 and refresh the sliders
-            if (index == 2) { 
-                step3.refresh_list (step1.important_items);
-            }
-            
-            stack.set_visible_child_full (index == 0 ? "step1" : (index == 1 ? "step2" : "step3"), Gtk.StackTransitionType.SLIDE_LEFT_RIGHT);
+                if (index == 1) { 
+                    step2.refresh_list (step1.important_items);
+                } else if (index == 2) { 
+                    step3.refresh_list (step1.important_items);
+                } else if (index == 3) {
+                    // Pass Step 1 items, Step 2 weights, and Step 3 scores to Step 4
+                    step4.calculate_and_display (step1.important_items, step2.weights_map, step3.scores_map);
+                }
+                stack.set_visible_child_full (index == 0 ? "step1" : (index == 1 ? "step2" : (index == 2 ? "step3" : "step4")), Gtk.StackTransitionType.SLIDE_LEFT_RIGHT);
         });
 
         main_box.append (sidebar_list);
