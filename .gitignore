@@ -1,0 +1,12 @@
+# Xcode
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+DerivedData/
+.DS_Store
+build/
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+
+# (merged from ios app setup)
