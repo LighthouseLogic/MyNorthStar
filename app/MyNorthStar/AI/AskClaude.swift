@@ -37,7 +37,6 @@ private struct AskClaudeSheet: View {
     let onAccept: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @AppStorage(SettingsKeys.claudeModel) private var model = ClaudeClient.defaultModel
 
     private enum Phase {
         case review
@@ -85,7 +84,7 @@ private struct AskClaudeSheet: View {
         case .loading:
             VStack(spacing: 12) {
                 ProgressView()
-                Text("Asking Claude (\(model))…")
+                Text("Asking \(AIEngine.activeBackendLabel)…")
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -108,10 +107,10 @@ private struct AskClaudeSheet: View {
 
     private var reviewView: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if !KeychainStore.hasAPIKey {
-                WarningBanner(text: "No Anthropic API key is set. Add one in Settings before using Ask Claude.")
+            if let readinessMessage = AIEngine.readinessMessage {
+                WarningBanner(text: readinessMessage)
             }
-            Label("Sending this request will transmit the text below to Anthropic's Claude API. Nothing is sent until you tap Send.", systemImage: "lock.shield")
+            Label(reviewDisclosureText, systemImage: "lock.shield")
                 .font(.callout)
                 .foregroundStyle(.secondary)
             DisclosureGroup("Review the exact prompt", isExpanded: $showPrompt) {
@@ -127,13 +126,22 @@ private struct AskClaudeSheet: View {
             Button {
                 send()
             } label: {
-                Label("Send to Claude", systemImage: "paperplane.fill")
+                Label("Send to \(AIEngine.activeBackendLabel)", systemImage: "paperplane.fill")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(!KeychainStore.hasAPIKey)
+            .disabled(!AIEngine.isReady)
         }
         .padding()
+    }
+
+    private var reviewDisclosureText: String {
+        switch AIEngine.activeBackend {
+        case .onDevice:
+            "This request runs entirely on this device using Apple's on-device AFM 3 Core model. Nothing is sent anywhere."
+        case .claude:
+            "Sending this request will transmit the text below to Anthropic's Claude API. Nothing is sent until you tap Send."
+        }
     }
 
     private var responseView: some View {
@@ -150,20 +158,15 @@ private struct AskClaudeSheet: View {
     }
 
     private func send() {
-        guard let apiKey = KeychainStore.loadAPIKey(), !apiKey.isEmpty else {
-            phase = .failed(ClaudeClient.ClientError.missingAPIKey.localizedDescription)
+        if let readinessMessage = AIEngine.readinessMessage {
+            phase = .failed(readinessMessage)
             return
         }
         phase = .loading
-        let requestModel = model
         let requestPrompt = prompt
         Task {
             do {
-                let text = try await ClaudeClient.complete(
-                    prompt: requestPrompt,
-                    model: requestModel,
-                    apiKey: apiKey
-                )
+                let text = try await AIEngine.complete(prompt: requestPrompt)
                 responseText = text
                 phase = .response
             } catch {
@@ -176,6 +179,7 @@ private struct AskClaudeSheet: View {
 /// Shared UserDefaults keys (the API key itself lives in the Keychain only).
 enum SettingsKeys {
     static let claudeModel = "claudeModel"
+    static let useClaudeBackend = "useClaudeBackend"
 }
 
 /// Assembles scoped prompt context from upstream steps.
