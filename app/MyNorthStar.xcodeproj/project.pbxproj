@@ -18,6 +18,28 @@
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		0DF0000000000000000000D1 /* Check for hardcoded API keys */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Check for hardcoded API keys";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "\"${SRCROOT}/Scripts/check_no_hardcoded_keys.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		0DF0000000000000000000A2 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
@@ -52,6 +74,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0DF0000000000000000000B1 /* Build configuration list for PBXNativeTarget "MyNorthStar" */;
 			buildPhases = (
+				0DF0000000000000000000D1 /* Check for hardcoded API keys */,
 				0DF0000000000000000000A7 /* Sources */,
 				0DF0000000000000000000A2 /* Frameworks */,
 				0DF0000000000000000000A8 /* Resources */,
