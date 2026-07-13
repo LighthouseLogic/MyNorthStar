@@ -114,6 +114,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		0DF0000000000000000000D1 /* Check for hardcoded API keys */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
