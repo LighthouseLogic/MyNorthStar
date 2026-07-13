@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXFileReference section */
@@ -11,34 +11,8 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		0DF0000000000000000000A1 /* MyNorthStar */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = MyNorthStar;
-			sourceTree = "<group>";
-		};
+		0DF0000000000000000000A1 /* MyNorthStar */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = MyNorthStar; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		0DF0000000000000000000D1 /* Check for hardcoded API keys */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Check for hardcoded API keys";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/bash;
-			shellScript = "SEARCH_ROOT=\"${SRCROOT:-.}/MyNorthStar\"\nFOUND=0\necho \"note: scanning ${SEARCH_ROOT} for hardcoded API keys...\"\nif grep -rnE \"sk-ant-[A-Za-z0-9_-]{10,}\" \"$SEARCH_ROOT\" --include=\"*.swift\" --include=\"*.plist\" --include=\"*.xcconfig\" --include=\"*.json\"; then\n  FOUND=1\nfi\nif grep -rnEi '(api[_]?key|anthropic[_]?key)[[:space:]]*[:=][[:space:]]*\"[A-Za-z0-9_-]{15,}\"' \"$SEARCH_ROOT\" --include=\"*.swift\"; then\n  FOUND=1\nfi\nif [ \"$FOUND\" -ne 0 ]; then\n  echo \"error: Found what looks like a hardcoded Claude/Anthropic API key in source.\"\n  echo \"error: Remove it. Keys must only be entered by the user into Settings/Keychain at runtime -- never committed.\"\n  exit 1\nfi\necho \"note: no hardcoded API keys found.\"\nexit 0\n";
-			showEnvVarsInLog = 0;
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		0DF0000000000000000000A2 /* Frameworks */ = {
@@ -101,7 +75,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1600;
-				LastUpgradeCheck = 1600;
+				LastUpgradeCheck = 2660;
 				TargetAttributes = {
 					0DF0000000000000000000A6 = {
 						CreatedOnToolsVersion = 16.0;
@@ -118,7 +92,6 @@
 			);
 			mainGroup = 0DF0000000000000000000A3;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			productRefGroup = 0DF0000000000000000000A4 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -137,6 +110,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		0DF0000000000000000000D1 /* Check for hardcoded API keys */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Check for hardcoded API keys";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "SEARCH_ROOT=\"${SRCROOT:-.}/MyNorthStar\"\nFOUND=0\necho \"note: scanning ${SEARCH_ROOT} for hardcoded API keys...\"\nif grep -rnE \"sk-ant-[A-Za-z0-9_-]{10,}\" \"$SEARCH_ROOT\" --include=\"*.swift\" --include=\"*.plist\" --include=\"*.xcconfig\" --include=\"*.json\"; then\n  FOUND=1\nfi\nif grep -rnEi '(api[_]?key|anthropic[_]?key)[[:space:]]*[:=][[:space:]]*\"[A-Za-z0-9_-]{15,}\"' \"$SEARCH_ROOT\" --include=\"*.swift\"; then\n  FOUND=1\nfi\nif [ \"$FOUND\" -ne 0 ]; then\n  echo \"error: Found what looks like a hardcoded Claude/Anthropic API key in source.\"\n  echo \"error: Remove it. Keys must only be entered by the user into Settings/Keychain at runtime -- never committed.\"\n  exit 1\nfi\necho \"note: no hardcoded API keys found.\"\nexit 0\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		0DF0000000000000000000A7 /* Sources */ = {
@@ -183,6 +178,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -205,6 +201,7 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -244,6 +241,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -259,6 +257,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
@@ -271,6 +270,7 @@
 				CODE_SIGN_ENTITLEMENTS = MyNorthStar/MyNorthStar.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -306,6 +306,7 @@
 				CODE_SIGN_ENTITLEMENTS = MyNorthStar/MyNorthStar.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
