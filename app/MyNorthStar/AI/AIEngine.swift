@@ -59,7 +59,7 @@ enum AIEngine {
     static func complete(prompt: String, maxTokens: Int = 1500) async throws -> String {
         switch activeBackend {
         case .onDevice:
-            try await FoundationModelsClient.complete(prompt: prompt, maxTokens: maxTokens)
+            return try await FoundationModelsClient.complete(prompt: prompt, maxTokens: maxTokens)
         case .claude:
             guard let apiKey = KeychainStore.loadAPIKey(), !apiKey.isEmpty else {
                 throw ClaudeClient.ClientError.missingAPIKey
