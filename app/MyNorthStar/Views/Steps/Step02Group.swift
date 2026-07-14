@@ -1,9 +1,15 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// Step 2 — Group: cluster related values under theme names.
 struct GroupStepView: View {
     @Bindable var project: Project
     let goTo: (Step) -> Void
+
+    @AppStorage("hasSeenGroupDragHint") private var hasSeenGroupDragHint = false
+    @State private var showDragHint = false
 
     var body: some View {
         StepContainer(step: .group) {
@@ -67,7 +73,31 @@ struct GroupStepView: View {
             if project.groups.isEmpty {
                 project.groups.append(ValueGroup())
             }
+            presentDragHintIfNeeded()
         }
+        #if os(iOS)
+        .overlay {
+            if showDragHint {
+                DragHintOverlay(sampleValue: project.ungroupedValues.first ?? "Courage")
+                    .transition(.opacity.combined(with: .scale(scale: 0.94)))
+            }
+        }
+        #endif
+    }
+
+    /// Dragging a card on iPhone needs a press-and-hold that nothing on screen
+    /// suggests, so the first visit gets a one-time, self-dismissing coach mark.
+    /// iPad and macOS drags work without a long press — no hint there.
+    private func presentDragHintIfNeeded() {
+        #if os(iOS)
+        guard UIDevice.current.userInterfaceIdiom == .phone, !hasSeenGroupDragHint else { return }
+        hasSeenGroupDragHint = true
+        withAnimation(.easeOut(duration: 0.3)) { showDragHint = true }
+        Task {
+            try? await Task.sleep(for: .seconds(2.5))
+            withAnimation(.easeIn(duration: 0.4)) { showDragHint = false }
+        }
+        #endif
     }
 
     private func assignToFirstGroup(_ value: String) {
@@ -84,6 +114,69 @@ struct GroupStepView: View {
         project.touch()
     }
 }
+
+#if os(iOS)
+/// One-time coach mark for iPhone: a fingertip presses and holds a value card,
+/// the card lifts with a shadow, then slides into a group container.
+private struct DragHintOverlay: View {
+    let sampleValue: String
+
+    @State private var pressed = false
+    @State private var slid = false
+
+    var body: some View {
+        VStack(spacing: 16) {
+            ZStack(alignment: .top) {
+                VStack(spacing: 22) {
+                    Color.clear.frame(height: 36)
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(Color.accentColor.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                        .frame(width: 170, height: 48)
+                        .overlay {
+                            Text("Group")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                }
+
+                Text(sampleValue)
+                    .font(.callout)
+                    .lineLimit(1)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(Color.accentColor.opacity(0.18), in: Capsule())
+                    .overlay(Capsule().strokeBorder(Color.accentColor))
+                    .foregroundStyle(Color.accentColor)
+                    .scaleEffect(pressed ? 1.08 : 1)
+                    .shadow(color: .black.opacity(pressed ? 0.3 : 0), radius: 6, y: 4)
+                    .offset(y: slid ? 60 : 0)
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemName: "hand.point.up.left.fill")
+                            .font(.title2)
+                            .foregroundStyle(.primary)
+                            .offset(x: 16, y: slid ? 76 : 16)
+                            .opacity(pressed ? 1 : 0)
+                    }
+            }
+            .frame(height: 110)
+
+            Text("Press and hold a value to drag it into a group.")
+                .font(.callout)
+                .multilineTextAlignment(.center)
+        }
+        .padding(20)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.quaternary))
+        .shadow(color: .black.opacity(0.2), radius: 18, y: 8)
+        .padding(.horizontal, 32)
+        .allowsHitTesting(false)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.35).delay(0.4)) { pressed = true }
+            withAnimation(.easeInOut(duration: 0.7).delay(1.1)) { slid = true }
+        }
+    }
+}
+#endif
 
 private struct GroupCard: View {
     @Bindable var project: Project
