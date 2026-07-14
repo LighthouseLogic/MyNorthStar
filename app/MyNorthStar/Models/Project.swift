@@ -38,6 +38,11 @@ final class Project {
     var principlesEdit: [String]?
     var guidelinesEdit: [String]?
 
+    /// Step 6 → Step 7 — passages saved into the constitution's
+    /// "Passages That Spoke to Me" section. Each entry is the formatted
+    /// block quote (text + attribution line).
+    var savedPassages: [String] = []
+
     init(title: String) {
         self.title = title
     }
@@ -58,7 +63,24 @@ final class Project {
         lifePurposeEdit = nil
         principlesEdit = nil
         guidelinesEdit = nil
+        savedPassages = []
         currentStep = 1
+        touch()
+    }
+}
+
+extension Project {
+    /// The clipboard/constitution text for a Step 6 passage: excerpt plus attribution.
+    static func formattedPassage(text: String, authorLine: String) -> String {
+        "“\(text)”\n— \(authorLine)"
+    }
+
+    /// Appends a passage to "Passages That Spoke to Me" (created on first use).
+    /// Saving the same passage twice is a no-op.
+    func savePassage(text: String, authorLine: String) {
+        let formatted = Self.formattedPassage(text: text, authorLine: authorLine)
+        guard !savedPassages.contains(formatted) else { return }
+        savedPassages.append(formatted)
         touch()
     }
 }

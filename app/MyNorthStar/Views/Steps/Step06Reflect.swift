@@ -1,4 +1,9 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 /// Step 6 — Corpus-informed reflection: matched passages plus personalised prompts.
 struct ReflectStepView: View {
@@ -81,7 +86,7 @@ struct ReflectStepView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 ForEach(selected) { passage in
-                    PassageCard(passage: passage, framing: corpus.framing(for: passage.tradition))
+                    PassageCard(project: project, passage: passage, framing: corpus.framing(for: passage.tradition))
                 }
             }
         } else {
@@ -112,16 +117,47 @@ private struct InsightRow: View {
 }
 
 private struct PassageCard: View {
+    @Bindable var project: Project
     let passage: Corpus.Passage
     let framing: String?
 
+    @State private var confirmation: String?
+    @State private var confirmationToken = 0
+
+    private var isSaved: Bool {
+        project.savedPassages.contains(
+            Project.formattedPassage(text: passage.text, authorLine: passage.authorLine)
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let framing {
-                Text(framing)
-                    .font(.caption)
-                    .italic()
-                    .foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                if let framing {
+                    Text(framing)
+                        .font(.caption)
+                        .italic()
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Button {
+                    copyToClipboard(Project.formattedPassage(text: passage.text, authorLine: passage.authorLine))
+                    confirm("Copied")
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Copy passage")
+                Button {
+                    project.savePassage(text: passage.text, authorLine: passage.authorLine)
+                    confirm("Added to your constitution")
+                } label: {
+                    Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
+                        .foregroundStyle(isSaved ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Add passage to your constitution")
             }
             Text("“\(passage.text)”")
                 .font(.body.leading(.loose))
@@ -153,6 +189,38 @@ private struct PassageCard: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(alignment: .topTrailing) {
+            if let confirmation {
+                Text(confirmation)
+                    .font(.caption.weight(.medium))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(.regularMaterial, in: Capsule())
+                    .overlay(Capsule().strokeBorder(.quaternary))
+                    .offset(y: -14)
+                    .transition(.opacity)
+            }
+        }
+    }
+
+    private func confirm(_ message: String) {
+        confirmationToken += 1
+        let token = confirmationToken
+        withAnimation(.easeOut(duration: 0.2)) { confirmation = message }
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            guard token == confirmationToken else { return }
+            withAnimation(.easeIn(duration: 0.3)) { confirmation = nil }
+        }
+    }
+
+    private func copyToClipboard(_ text: String) {
+        #if canImport(UIKit)
+        UIPasteboard.general.string = text
+        #elseif canImport(AppKit)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        #endif
     }
 }
 

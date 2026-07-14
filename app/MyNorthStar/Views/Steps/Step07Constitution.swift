@@ -33,6 +33,7 @@ struct ConstitutionStepView: View {
             lifePurposeSection
             principlesSection
             guidelinesSection
+            passagesSection
 
             HStack {
                 Button("← Back to Reflection") { goTo(.reflect) }
@@ -121,6 +122,30 @@ struct ConstitutionStepView: View {
                     ),
                     placeholder: "I will always… / I will never… / I commit to…"
                 )
+            }
+        }
+    }
+
+    /// Shown only once the user has bookmarked at least one Step 6 passage.
+    @ViewBuilder
+    private var passagesSection: some View {
+        if !project.savedPassages.isEmpty {
+            ConstitutionSection(
+                icon: "📖",
+                title: "Passages That Spoke to Me",
+                subtitle: "Saved from your reflection"
+            ) {
+                ForEach(Array(project.savedPassages.enumerated()), id: \.offset) { _, passage in
+                    HStack(alignment: .top, spacing: 12) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.accentColor.opacity(0.5))
+                            .frame(width: 3)
+                        Text(passage)
+                            .font(.callout.leading(.loose))
+                            .italic()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
             }
         }
     }
