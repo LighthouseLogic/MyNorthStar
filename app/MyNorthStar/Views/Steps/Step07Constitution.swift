@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Step 7 — Personal Constitution: purpose, principles, and guidelines,
 /// seeded from everything upstream and edited until it sounds like the user.
@@ -8,6 +9,9 @@ struct ConstitutionStepView: View {
     let onStartOver: () -> Void
 
     @State private var exportingConstitution = false
+    @State private var showingExportGuidance = false
+    @State private var pendingFileExport = false
+    @AppStorage("hasExportedConstitution") private var hasExportedConstitution = false
 
     var body: some View {
         StepContainer(step: .constitution) {
@@ -38,7 +42,7 @@ struct ConstitutionStepView: View {
             HStack {
                 Button("← Back to Reflection") { goTo(.reflect) }
                     .buttonStyle(.bordered)
-                Button("Download My Constitution") { exportingConstitution = true }
+                Button("Export My Constitution") { showingExportGuidance = true }
                     .buttonStyle(.borderedProminent)
                 Button("Start Over", role: .destructive, action: onStartOver)
                     .buttonStyle(.bordered)
@@ -51,7 +55,30 @@ struct ConstitutionStepView: View {
             document: TextExportDocument(text: project.constitutionText),
             contentType: .plainText,
             defaultFilename: "my-personal-constitution"
-        ) { _ in }
+        ) { result in
+            if case .success = result { hasExportedConstitution = true }
+        }
+        .sheet(
+            isPresented: $showingExportGuidance,
+            onDismiss: {
+                // The file dialog can only present after the sheet is fully gone.
+                if pendingFileExport {
+                    pendingFileExport = false
+                    exportingConstitution = true
+                }
+            }
+        ) {
+            ExportGuidanceSheet(
+                constitutionText: project.constitutionText,
+                isReturningExporter: hasExportedConstitution,
+                onSendComplete: { hasExportedConstitution = true },
+                onSaveToFile: {
+                    pendingFileExport = true
+                    showingExportGuidance = false
+                },
+                onDone: { showingExportGuidance = false }
+            )
+        }
     }
 
     private var lifePurposeSection: some View {
@@ -170,6 +197,71 @@ struct ConstitutionStepView: View {
                 )
             }
         }
+    }
+}
+
+/// Post-export guidance: what the exported constitution is, with "Send to
+/// Myself" as the prominent path and file-to-disk as the secondary one.
+private struct ExportGuidanceSheet: View {
+    let constitutionText: String
+    let isReturningExporter: Bool
+    let onSendComplete: () -> Void
+    let onSaveToFile: () -> Void
+    let onDone: () -> Void
+
+    var body: some View {
+        VStack(spacing: 18) {
+            Text("📜")
+                .font(.largeTitle)
+            Text("Your constitution is ready")
+                .font(.title3.bold())
+            Text("It's a simple text file you can open and edit anywhere — Notes, Pages, or any text editor. Send it to yourself so it's easy to find when you want it.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            ShareLink(
+                item: ConstitutionShareItem(text: constitutionText),
+                preview: SharePreview("My Personal Constitution")
+            ) {
+                Label("Send to Myself", systemImage: "paperplane.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .simultaneousGesture(TapGesture().onEnded { onSendComplete() })
+
+            Button(action: onSaveToFile) {
+                Label("Save to a File Instead", systemImage: "square.and.arrow.down")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+
+            Button("Done", action: onDone)
+                .buttonStyle(.borderless)
+
+            if isReturningExporter {
+                Text("You can also edit your constitution directly in the app at any time.")
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(28)
+        .frame(maxWidth: 420)
+        .presentationDetents([.medium, .large])
+    }
+}
+
+/// Shares the constitution as a text file, with plain text as the fallback.
+private struct ConstitutionShareItem: Transferable {
+    let text: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .plainText) { Data($0.text.utf8) }
+            .suggestedFileName("my-personal-constitution.txt")
+        ProxyRepresentation(exporting: \.text)
     }
 }
 
