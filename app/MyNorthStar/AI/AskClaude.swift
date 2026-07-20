@@ -139,8 +139,10 @@ private struct AskClaudeSheet: View {
         switch AIEngine.activeBackend {
         case .onDevice:
             "This request runs entirely on this device using Apple's on-device AFM 3 Core model. Nothing is sent anywhere."
-        case .claude:
-            "Sending this request will transmit the text below to Anthropic's Claude API. Nothing is sent until you tap Send."
+        case .cloud(let provider?):
+            "Sending this request will transmit the text below to \(provider.displayName)'s API. Nothing is sent until you tap Send."
+        case .cloud(nil):
+            "No cloud provider is configured. Add an API key in Settings first."
         }
     }
 
@@ -176,10 +178,15 @@ private struct AskClaudeSheet: View {
     }
 }
 
-/// Shared UserDefaults keys (the API key itself lives in the Keychain only).
+/// Shared UserDefaults keys (API keys themselves live in the Keychain only).
+/// `useCloudAI` and `claudeModel` keep their pre-multi-provider raw names so
+/// existing users' settings carry over.
 enum SettingsKeys {
     static let claudeModel = "claudeModel"
-    static let useClaudeBackend = "useClaudeBackend"
+    static let openAIModel = "openAIModel"
+    static let googleModel = "googleModel"
+    static let useCloudAI = "useClaudeBackend"
+    static let preferredProvider = "preferredProvider"
 }
 
 /// Assembles scoped prompt context from upstream steps.

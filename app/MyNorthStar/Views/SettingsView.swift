@@ -1,28 +1,13 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @AppStorage(SettingsKeys.claudeModel) private var model = ClaudeClient.defaultModel
-    @AppStorage(SettingsKeys.useClaudeBackend) private var useClaudeBackend = false
+    @AppStorage(SettingsKeys.useCloudAI) private var useCloudAI = false
+    @AppStorage(SettingsKeys.preferredProvider) private var preferredProviderRaw = "auto"
 
-    @State private var apiKeyField = ""
-    @State private var keyIsStored = false
-    @State private var customModel = ""
-    @State private var usingCustomModel = false
-    @State private var testState = TestState.idle
-    @State private var saveError: String?
-
-    private static let suggestedModels = [
-        "claude-sonnet-5",
-        "claude-opus-4-8",
-        "claude-haiku-4-5-20251001",
-    ]
-
-    private enum TestState: Equatable {
-        case idle
-        case testing
-        case success
-        case failure(String)
-    }
+    /// Bumped by provider sections when keys change, so the backend section
+    /// re-reads Keychain state.
+    @State private var keychainGeneration = 0
+    @State private var anyKeyStored = false
 
     private var onDeviceAvailability: (isAvailable: Bool, reason: String?) {
         FoundationModelsClient.availability
@@ -35,169 +20,191 @@ struct SettingsView: View {
                     Label("On-Device (AFM 3 Core)", systemImage: onDeviceAvailability.isAvailable ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                         .foregroundStyle(onDeviceAvailability.isAvailable ? .green : .orange)
                     Spacer()
-                    if !useClaudeBackend {
+                    if !useCloudAI {
                         Text("Active").font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 if let reason = onDeviceAvailability.reason {
                     Text(reason).font(.caption).foregroundStyle(.secondary)
                 }
-                Toggle("Use Claude API instead", isOn: $useClaudeBackend)
-                    .disabled(!keyIsStored && !useClaudeBackend)
-                if !keyIsStored && !useClaudeBackend {
-                    Text("Add a Claude API key below to enable this.")
+                Toggle("Use a cloud provider instead", isOn: $useCloudAI)
+                    .disabled(!anyKeyStored && !useCloudAI)
+                if !anyKeyStored && !useCloudAI {
+                    Text("Add an API key below to enable this.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+                if useCloudAI {
+                    Picker("Preferred provider", selection: $preferredProviderRaw) {
+                        Text("Automatic").tag("auto")
+                        ForEach(AIProvider.allCases) { provider in
+                            Text(provider.displayName).tag(provider.rawValue)
+                        }
+                    }
+                    HStack {
+                        Text("Active for Ask AI")
+                        Spacer()
+                        Text(AIEngine.activeBackendLabel)
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.callout)
                 }
             } header: {
                 Text("AI Backend")
             } footer: {
-                Text("MyNorthStar uses Apple's on-device AFM 3 Core model by default — nothing leaves this device. Turn this on to use Claude instead for any \"Ask AI\" action, using the key and model below.")
+                Text("MyNorthStar uses Apple's on-device AFM 3 Core model by default — nothing leaves this device. Turn this on to use a cloud provider instead for any \"Ask AI\" action. Automatic order prefers Anthropic, then OpenAI, then Google, among providers with a stored key; picking a preferred provider overrides that.")
             }
+            .id(keychainGeneration)
 
-            Section {
-                SecureField("Anthropic API key (sk-ant-…)", text: $apiKeyField)
-                    .textContentType(.password)
-                    #if os(iOS)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    #endif
-                HStack {
-                    Button("Save Key") { saveKey() }
-                        .disabled(apiKeyField.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    if keyIsStored {
-                        Button("Remove Key", role: .destructive) {
-                            KeychainStore.deleteAPIKey()
-                            keyIsStored = false
-                            apiKeyField = ""
-                            testState = .idle
-                        }
-                    }
-                    Spacer()
-                    if keyIsStored {
-                        Label("Key stored in Keychain", systemImage: "checkmark.seal.fill")
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                    }
+            ForEach(AIProvider.allCases) { provider in
+                ProviderSection(provider: provider) {
+                    refreshKeyState()
                 }
-                if let saveError {
-                    Text(saveError).font(.caption).foregroundStyle(.red)
-                }
-            } header: {
-                Text("Claude API Key")
-            } footer: {
-                Text("Your key is stored only in the device Keychain — never in the app's database, preferences, or logs. You bring your own key from console.anthropic.com. Used only when \"Use Claude API instead\" is on above.")
-            }
-
-            Section {
-                Picker("Model", selection: modelSelection) {
-                    ForEach(Self.suggestedModels, id: \.self) { name in
-                        Text(name).tag(name)
-                    }
-                    Text("Custom…").tag("custom")
-                }
-                if usingCustomModel {
-                    TextField("Model ID (e.g. claude-sonnet-5)", text: $customModel)
-                        #if os(iOS)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        #endif
-                        .onSubmit { commitCustomModel() }
-                    Button("Use This Model") { commitCustomModel() }
-                        .disabled(customModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            } header: {
-                Text("Model")
-            } footer: {
-                Text("Default: \(ClaudeClient.defaultModel). Currently using: \(model)")
-            }
-
-            Section {
-                Button {
-                    testKey()
-                } label: {
-                    HStack {
-                        Text("Test Key")
-                        Spacer()
-                        switch testState {
-                        case .idle:
-                            EmptyView()
-                        case .testing:
-                            ProgressView().controlSize(.small)
-                        case .success:
-                            Label("Key works", systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                        case .failure(let message):
-                            Label(message, systemImage: "xmark.circle.fill")
-                                .foregroundStyle(.red)
-                                .lineLimit(2)
-                        }
-                    }
-                }
-                .disabled(!keyIsStored || testState == .testing)
-            } footer: {
-                Text("Sends a one-line test request to the Anthropic API using the stored key and selected model.")
             }
 
             Section("Privacy") {
                 NavigationLink("Privacy Policy") {
                     PrivacyPolicyView()
                 }
-                Label("All framework data stays on this device. By default, Ask AI actions run entirely on-device (AFM 3 Core). Text is sent to Anthropic only if you turn on \"Use Claude API instead\" above and explicitly tap an Ask AI action.", systemImage: "lock.shield")
+                Label("All framework data stays on this device. By default, Ask AI actions run entirely on-device (AFM 3 Core). Text is sent to a cloud provider (Anthropic, OpenAI, or Google) only if you turn on \"Use a cloud provider instead\" above and explicitly tap an Ask AI action.", systemImage: "lock.shield")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
         .navigationTitle("Settings")
-        .onAppear {
-            keyIsStored = KeychainStore.hasAPIKey
-            usingCustomModel = !Self.suggestedModels.contains(model)
-            if usingCustomModel { customModel = model }
-        }
+        .onAppear(perform: refreshKeyState)
     }
 
-    private var modelSelection: Binding<String> {
-        Binding {
-            usingCustomModel ? "custom" : model
-        } set: { newValue in
-            if newValue == "custom" {
-                usingCustomModel = true
-                customModel = model
-            } else {
-                usingCustomModel = false
-                model = newValue
+    private func refreshKeyState() {
+        anyKeyStored = KeychainStore.anyProviderHasKey
+        keychainGeneration += 1
+    }
+}
+
+/// One provider's key + model management: secure key field, Keychain-backed
+/// storage, hardcoded model picker, and a per-provider key test.
+private struct ProviderSection: View {
+    let provider: AIProvider
+    let onKeysChanged: () -> Void
+
+    @State private var keyField = ""
+    @State private var keyIsStored = false
+    @State private var saveError: String?
+    @State private var testState = TestState.idle
+    @State private var model = ""
+
+    private enum TestState: Equatable {
+        case idle
+        case testing
+        case success
+        case failure(String)
+    }
+
+    var body: some View {
+        Section {
+            SecureField(provider.keyFieldPlaceholder, text: $keyField)
+                .textContentType(.password)
+                #if os(iOS)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                #endif
+            HStack {
+                Button("Save Key") { saveKey() }
+                    .disabled(keyField.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                if keyIsStored {
+                    Button("Remove Key", role: .destructive) {
+                        KeychainStore.deleteAPIKey(for: provider)
+                        keyIsStored = false
+                        keyField = ""
+                        testState = .idle
+                        onKeysChanged()
+                    }
+                }
+                Spacer()
+                if keyIsStored {
+                    Label("Key stored in Keychain", systemImage: "checkmark.seal.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                }
+            }
+            if let saveError {
+                Text(saveError).font(.caption).foregroundStyle(.red)
+            }
+
+            Picker("Model", selection: $model) {
+                ForEach(modelOptions, id: \.self) { name in
+                    Text(name).tag(name)
+                }
+            }
+            .onChange(of: model) {
+                UserDefaults.standard.set(model, forKey: provider.modelSettingsKey)
                 testState = .idle
             }
+
+            Button {
+                testKey()
+            } label: {
+                HStack {
+                    Text("Test Key")
+                    Spacer()
+                    switch testState {
+                    case .idle:
+                        EmptyView()
+                    case .testing:
+                        ProgressView().controlSize(.small)
+                    case .success:
+                        Label("Key works", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    case .failure(let message):
+                        Label(message, systemImage: "xmark.circle.fill")
+                            .foregroundStyle(.red)
+                            .lineLimit(2)
+                    }
+                }
+            }
+            .disabled(!keyIsStored || testState == .testing)
+        } header: {
+            Text(provider.displayName)
+        } footer: {
+            Text("Your own key from \(provider.keySource), stored only in the device Keychain — never in the app's database, preferences, or logs. Default model: \(provider.defaultModel).")
+        }
+        .onAppear {
+            keyIsStored = KeychainStore.hasAPIKey(for: provider)
+            model = provider.selectedModel
         }
     }
 
-    private func commitCustomModel() {
-        let trimmed = customModel.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        model = trimmed
-        testState = .idle
+    /// Hardcoded list, plus the stored value if it isn't in the list (e.g. a
+    /// custom model ID saved before multi-provider support).
+    private var modelOptions: [String] {
+        var options = provider.models
+        if !model.isEmpty, !options.contains(model) {
+            options.append(model)
+        }
+        return options
     }
 
     private func saveKey() {
         do {
-            try KeychainStore.saveAPIKey(apiKeyField)
-            keyIsStored = KeychainStore.hasAPIKey
-            apiKeyField = ""
+            try KeychainStore.saveAPIKey(keyField, for: provider)
+            keyIsStored = KeychainStore.hasAPIKey(for: provider)
+            keyField = ""
             saveError = nil
             testState = .idle
+            onKeysChanged()
         } catch {
             saveError = error.localizedDescription
         }
     }
 
     private func testKey() {
-        guard let apiKey = KeychainStore.loadAPIKey() else { return }
+        guard let apiKey = KeychainStore.loadAPIKey(for: provider) else { return }
         testState = .testing
-        let testModel = model
+        let testedProvider = provider
         Task {
             do {
-                try await ClaudeClient.testKey(model: testModel, apiKey: apiKey)
+                try await AIEngine.testKey(provider: testedProvider, apiKey: apiKey)
                 testState = .success
             } catch {
                 testState = .failure(error.localizedDescription)
@@ -220,10 +227,10 @@ struct PrivacyPolicyView: View {
                     Text("Everything you enter in MyNorthStar — projects, selected values, groups, answers, alignment maps, reflections, and your personal constitution — is stored locally on this device using Apple's SwiftData. There is no account, no cloud sync, and no analytics. We do not collect, transmit, or have access to any of your content.")
 
                     Text("AI features are opt-in, per request").font(.headline)
-                    Text("MyNorthStar includes optional \"Ask AI\" actions. By default these run entirely on this device using Apple's on-device AFM 3 Core model (part of the Foundation Models framework) — no data leaves your device. If you turn on \"Use Claude API instead\" in Settings and supply your own Anthropic API key, those same actions are powered by Anthropic's Claude API instead. Data leaves your device only when you explicitly trigger such a request while that setting is on, and only the text shown in the request preview is sent — directly to Anthropic over HTTPS, never through our servers. Responses are shown for your review and are written into your project only if you accept them. Anthropic's handling of API data is governed by Anthropic's own privacy policy.")
+                    Text("MyNorthStar includes optional \"Ask AI\" actions. By default these run entirely on this device using Apple's on-device AFM 3 Core model (part of the Foundation Models framework) — no data leaves your device. If you turn on \"Use a cloud provider instead\" in Settings and supply your own API key for Anthropic, OpenAI, or Google, those same actions are powered by that provider's API instead. Data leaves your device only when you explicitly trigger such a request while that setting is on, and only the text shown in the request preview is sent — directly to the provider over HTTPS, never through our servers. Responses are shown for your review and are written into your project only if you accept them. Each provider's handling of API data is governed by that provider's own privacy policy.")
 
-                    Text("Your API key").font(.headline)
-                    Text("Your Anthropic API key is stored exclusively in the device Keychain and is only used when \"Use Claude API instead\" is turned on. It is never written to the app's database, preferences, exports, or logs.")
+                    Text("Your API keys").font(.headline)
+                    Text("Your API keys are stored exclusively in the device Keychain and are only used when \"Use a cloud provider instead\" is turned on. They are never written to the app's database, preferences, exports, or logs.")
 
                     Text("Contact").font(.headline)
                     Text("Questions about this policy can be directed to the developer via the App Store listing.")

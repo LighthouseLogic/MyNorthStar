@@ -1,10 +1,9 @@
 import Foundation
 
-/// Minimal client for the Anthropic Messages API. Data leaves the device only
-/// through this call, and only when the user explicitly triggers it.
-enum ClaudeClient {
-    static let defaultModel = "claude-sonnet-5"
-
+/// Minimal client for the Google Gemini generateContent API. Data leaves the
+/// device only through this call, and only when the user explicitly triggers
+/// it. The key travels in a header, never in the URL.
+enum GeminiClient {
     enum ClientError: LocalizedError {
         case missingAPIKey
         case badResponse
@@ -13,9 +12,9 @@ enum ClaudeClient {
         var errorDescription: String? {
             switch self {
             case .missingAPIKey:
-                "No Anthropic API key is set. Add one in Settings."
+                "No Google AI API key is set. Add one in Settings."
             case .badResponse:
-                "Unexpected response from the Anthropic API."
+                "Unexpected response from the Gemini API."
             case .api(let message):
                 message
             }
@@ -23,22 +22,32 @@ enum ClaudeClient {
     }
 
     private struct Request: Encodable {
-        struct Message: Encodable {
-            let role: String
-            let content: String
+        struct Content: Encodable {
+            struct Part: Encodable {
+                let text: String
+            }
+            var role: String?
+            let parts: [Part]
         }
-        let model: String
-        let max_tokens: Int
-        let system: String
-        let messages: [Message]
+        struct GenerationConfig: Encodable {
+            let maxOutputTokens: Int
+        }
+        let systemInstruction: Content
+        let contents: [Content]
+        let generationConfig: GenerationConfig
     }
 
     private struct Response: Decodable {
-        struct ContentBlock: Decodable {
-            let type: String
-            let text: String?
+        struct Candidate: Decodable {
+            struct Content: Decodable {
+                struct Part: Decodable {
+                    let text: String?
+                }
+                let parts: [Part]?
+            }
+            let content: Content?
         }
-        let content: [ContentBlock]
+        let candidates: [Candidate]?
     }
 
     private struct ErrorResponse: Decodable {
@@ -54,16 +63,15 @@ enum ClaudeClient {
         apiKey: String,
         maxTokens: Int = 1500
     ) async throws -> String {
-        var request = URLRequest(url: URL(string: "https://api.anthropic.com/v1/messages")!)
+        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         request.httpBody = try JSONEncoder().encode(Request(
-            model: model,
-            max_tokens: maxTokens,
-            system: AIEngine.systemPrompt,
-            messages: [.init(role: "user", content: prompt)]
+            systemInstruction: .init(parts: [.init(text: AIEngine.systemPrompt)]),
+            contents: [.init(role: "user", parts: [.init(text: prompt)])],
+            generationConfig: .init(maxOutputTokens: maxTokens)
         ))
 
         let (data, urlResponse) = try await URLSession.shared.data(for: request)
@@ -77,7 +85,9 @@ enum ClaudeClient {
             throw ClientError.api("Request failed with status \(http.statusCode).")
         }
         let response = try JSONDecoder().decode(Response.self, from: data)
-        let text = response.content.compactMap(\.text).joined(separator: "\n")
+        let text = (response.candidates ?? [])
+            .compactMap { $0.content?.parts?.compactMap(\.text).joined(separator: "\n") }
+            .joined(separator: "\n")
         guard !text.isEmpty else { throw ClientError.badResponse }
         return text
     }

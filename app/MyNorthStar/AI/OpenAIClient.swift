@@ -1,10 +1,8 @@
 import Foundation
 
-/// Minimal client for the Anthropic Messages API. Data leaves the device only
-/// through this call, and only when the user explicitly triggers it.
-enum ClaudeClient {
-    static let defaultModel = "claude-sonnet-5"
-
+/// Minimal client for the OpenAI Chat Completions API. Data leaves the device
+/// only through this call, and only when the user explicitly triggers it.
+enum OpenAIClient {
     enum ClientError: LocalizedError {
         case missingAPIKey
         case badResponse
@@ -13,9 +11,9 @@ enum ClaudeClient {
         var errorDescription: String? {
             switch self {
             case .missingAPIKey:
-                "No Anthropic API key is set. Add one in Settings."
+                "No OpenAI API key is set. Add one in Settings."
             case .badResponse:
-                "Unexpected response from the Anthropic API."
+                "Unexpected response from the OpenAI API."
             case .api(let message):
                 message
             }
@@ -29,16 +27,17 @@ enum ClaudeClient {
         }
         let model: String
         let max_tokens: Int
-        let system: String
         let messages: [Message]
     }
 
     private struct Response: Decodable {
-        struct ContentBlock: Decodable {
-            let type: String
-            let text: String?
+        struct Choice: Decodable {
+            struct Message: Decodable {
+                let content: String?
+            }
+            let message: Message
         }
-        let content: [ContentBlock]
+        let choices: [Choice]
     }
 
     private struct ErrorResponse: Decodable {
@@ -54,16 +53,17 @@ enum ClaudeClient {
         apiKey: String,
         maxTokens: Int = 1500
     ) async throws -> String {
-        var request = URLRequest(url: URL(string: "https://api.anthropic.com/v1/messages")!)
+        var request = URLRequest(url: URL(string: "https://api.openai.com/v1/chat/completions")!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONEncoder().encode(Request(
             model: model,
             max_tokens: maxTokens,
-            system: AIEngine.systemPrompt,
-            messages: [.init(role: "user", content: prompt)]
+            messages: [
+                .init(role: "system", content: AIEngine.systemPrompt),
+                .init(role: "user", content: prompt),
+            ]
         ))
 
         let (data, urlResponse) = try await URLSession.shared.data(for: request)
@@ -77,7 +77,7 @@ enum ClaudeClient {
             throw ClientError.api("Request failed with status \(http.statusCode).")
         }
         let response = try JSONDecoder().decode(Response.self, from: data)
-        let text = response.content.compactMap(\.text).joined(separator: "\n")
+        let text = response.choices.compactMap(\.message.content).joined(separator: "\n")
         guard !text.isEmpty else { throw ClientError.badResponse }
         return text
     }

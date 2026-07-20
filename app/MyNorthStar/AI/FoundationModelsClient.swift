@@ -65,7 +65,7 @@ enum FoundationModelsClient {
         guard isAvailable else {
             throw ClientError.unavailable(reason ?? "On-device model is unavailable.")
         }
-        let session = LanguageModelSession(instructions: ClaudeClient.systemPrompt)
+        let session = LanguageModelSession(instructions: AIEngine.systemPrompt)
         do {
             let response = try await session.respond(to: prompt)
             let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
