@@ -8,6 +8,8 @@ struct ProjectDetailView: View {
     @State private var step: Step = .selectValues
     @State private var gateMessage: String?
     @State private var confirmingStartOver = false
+    @State private var showSavedBadge = false
+    @State private var savedBadgeToken = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -15,12 +17,29 @@ struct ProjectDetailView: View {
             Divider()
             stepContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                #if !os(macOS)
+                .overlay(alignment: .top) {
+                    if showSavedBadge {
+                        SavedBadge()
+                    }
+                }
+                #endif
         }
         .navigationTitle($project.title)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar {
+            #if os(macOS)
+            ToolbarItem(placement: .status) {
+                if showSavedBadge {
+                    Label("Progress saved", systemImage: "checkmark.circle.fill")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .transition(.opacity)
+                }
+            }
+            #endif
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     goToAdjacentStep(offset: -1)
@@ -127,6 +146,11 @@ struct ProjectDetailView: View {
             }
             return
         }
+        // SwiftData has already auto-saved; the badge is a trust signal, shown
+        // on forward moves only — never on initial load or going back.
+        if target.rawValue > step.rawValue {
+            flashSavedBadge()
+        }
         step = target
         project.currentStep = target.rawValue
         project.touch()
@@ -135,6 +159,34 @@ struct ProjectDetailView: View {
     private func goToAdjacentStep(offset: Int) {
         guard let target = Step(rawValue: step.rawValue + offset) else { return }
         go(to: target)
+    }
+
+    private func flashSavedBadge() {
+        savedBadgeToken += 1
+        let token = savedBadgeToken
+        withAnimation(.easeOut(duration: 0.2)) { showSavedBadge = true }
+        Task {
+            try? await Task.sleep(for: .seconds(1.8))
+            guard token == savedBadgeToken else { return }
+            withAnimation(.easeIn(duration: 0.3)) { showSavedBadge = false }
+        }
+    }
+}
+
+/// Muted "Progress saved" confirmation shown briefly at the top of the step
+/// content on iOS/iPadOS (macOS uses a toolbar status label instead).
+private struct SavedBadge: View {
+    var body: some View {
+        Label("Progress saved", systemImage: "checkmark.circle.fill")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.regularMaterial, in: Capsule())
+            .overlay(Capsule().strokeBorder(.quaternary))
+            .padding(.top, 12)
+            .transition(.move(edge: .top).combined(with: .opacity))
+            .allowsHitTesting(false)
     }
 }
 
